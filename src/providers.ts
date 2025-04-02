@@ -2,8 +2,12 @@ import OpenAI, { ClientOptions } from "openai";
 
 type LLMResponse = OpenAI.Responses.Response;
 
+type Prompt = {
+  instructions: string;
+  input: string;
+}
 interface LLMClient {
-    sendMessage(message: string): Promise<LLMResponse>;
+    sendMessage(message: Prompt): Promise<LLMResponse>;
     validateResponse(response: LLMResponse): boolean;
     getResponseText(response: LLMResponse): string;
 }
@@ -18,11 +22,11 @@ class OpenAIClient implements LLMClient {
     this.model = model;
   }
 
-  async sendMessage(message: string) {
+  async sendMessage(message: Prompt): Promise<LLMResponse> {
     return this.client.responses.create({
       model: this.model,
-      instructions: 'instructions',
-      input: message,
+      instructions: message.instructions,
+      input: message.input,
     });
   }
 
@@ -61,7 +65,7 @@ export class LLMProvider {
     return this.client;
   }
 
-  async sendMessage(message: string): Promise<LLMResponse> {
+  async sendPrompt(message: Prompt): Promise<LLMResponse> {
     const client = this.getClient();
     return client.sendMessage(message);
   }
