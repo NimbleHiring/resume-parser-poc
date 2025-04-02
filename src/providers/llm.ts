@@ -6,14 +6,14 @@ type Prompt = {
   instructions: string;
   input: string;
 }
-interface LLMClient {
-    sendMessage(message: Prompt): Promise<LLMResponse>;
-    validateResponse(response: LLMResponse): boolean;
-    getResponseText(response: LLMResponse): string;
+interface LLMClient<T extends Prompt = Prompt, U extends LLMResponse = LLMResponse> {
+    sendMessage(prompt: T): Promise<U>;
+    validateResponse(response: U): boolean;
+    getResponseText(response: U): string;
 }
 
 
-class OpenAIClient implements LLMClient {
+class OpenAIClient implements LLMClient<Prompt, OpenAI.Responses.Response> {
   private client: OpenAI;
   private model: string;
 
@@ -22,7 +22,7 @@ class OpenAIClient implements LLMClient {
     this.model = model;
   }
 
-  async sendMessage(message: Prompt): Promise<LLMResponse> {
+  async sendMessage(message: Prompt): Promise<OpenAI.Responses.Response> {
     return this.client.responses.create({
       model: this.model,
       instructions: message.instructions,
@@ -30,7 +30,7 @@ class OpenAIClient implements LLMClient {
     });
   }
 
-  validateResponse(response: LLMResponse): boolean {
+  validateResponse(response: OpenAI.Responses.Response): boolean {
     if (!response.error) return true;
     console.error(response.error);
     return false;
