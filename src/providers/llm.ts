@@ -67,7 +67,7 @@ class AnthropicClient implements LLMClient<Anthropic.Messages.MessageCreateParam
 
   constructPrompt(extractedData: string): Anthropic.Messages.MessageCreateParamsNonStreaming {
     return {
-      max_tokens: 2048,
+      max_tokens: 4096,
       messages: [{ role: 'user', content: basePrompt + `\nHere is the resume data:\n` + extractedData }],
       model: this.model,
     }
@@ -123,10 +123,7 @@ class GeminiClient implements LLMClient<GenerateContentParameters, GenerateConte
   }
 
   async sendMessage(prompt: GenerateContentParameters): Promise<GenerateContentResponse> {
-    return await this.client.models.generateContent({
-      model: 'gemini-2.0-flash-001',
-      contents: 'Why is the sky blue?',
-    });
+    return await this.client.models.generateContent(prompt);
   }
 
   validateResponse(response: GenerateContentResponse): boolean {
@@ -145,24 +142,31 @@ class GeminiClient implements LLMClient<GenerateContentParameters, GenerateConte
 
 export class LLMProvider {
   private client: LLMClient | null = null;
-  private provider: string = process.env.LLM_PROVIDER || "openai";
+  private model: string;
+  private env: Env;
+
+  constructor(env: Env) {
+    this.env = env;
+    this.model = env.LLM_MODEL || "gpt-4o";
+  }
 
   private createClient(): LLMClient {
-    switch (this.provider) {
-      case "openai":
+    const modelProvider = this.model.split("-")[0];
+    switch (modelProvider) {
+      case "gpt":
         return new OpenAIClient({
-          apiKey: process.env.OPENAI_API_KEY,
-        }, 'gpt-4o');
-      case "anthropic":
+          apiKey: this.env.OPENAI_API_KEY,
+        }, this.model);
+      case "claude":
         return new AnthropicClient({
-          apiKey: process.env.ANTHROPIC_API_KEY,
-        }, 'claude-3-5-sonnet-latest');
+          apiKey: this.env.ANTHROPIC_API_KEY,
+        }, this.model);
       case "gemini":
         return new GeminiClient({
-          apiKey: process.env.GEMINI_API_KEY,
-        }, 'gemini-2.0-flash-001');
+          apiKey: this.env.GEMINI_API_KEY,
+        }, this.model);
       default:
-        throw new Error(`Unsupported LLM provider: ${this.provider}`);
+        throw new Error(`Unsupported LLM model: ${this.model}`);
     }
   }
 
@@ -189,7 +193,7 @@ export class LLMProvider {
   }
 
   constructPrompt(extractedData: string): Prompt {
-    const client = new LLMProvider().getClient();
+    const client = this.getClient();
     return client.constructPrompt(extractedData);
   }
 }

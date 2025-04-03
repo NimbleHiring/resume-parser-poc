@@ -27,7 +27,8 @@ Your task is to analyze the resume text provided and return a JSON object with t
       "location": "",
       "startDate": "",
       "endDate": "",
-      "description": ""
+      "description": "",
+      "reasonForLeaving": ""
     }
   ],
   "education": [
