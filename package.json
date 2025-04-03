@@ -23,6 +23,8 @@
 		"@aws-sdk/s3-request-presigner": "^3.779.0",
 		"@aws-sdk/util-stream-node": "^3.374.0",
 		"@google/genai": "^0.7.0",
+		"fast-xml-parser": "^5.2.0",
+		"fflate": "^0.8.2",
 		"openai": "^4.91.1",
 		"pdfjs-serverless": "^0.7.0"
 	}

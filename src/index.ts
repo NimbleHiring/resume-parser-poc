@@ -5,7 +5,7 @@ interface RequestBody {
   resumeKey: string;
 }
 
-async function handleRequest(request: Request, env: any): Promise<Response> {;
+async function handleRequest(request: Request, env: Env): Promise<Response> {;
   const overallStart = performance.now();
   
   const body = (await request.json()) as RequestBody;
@@ -13,7 +13,7 @@ async function handleRequest(request: Request, env: any): Promise<Response> {;
 
   const s3Start = performance.now();
   const s3Client = new S3Provider(env);
-  const bucket = env.NIMBLE_RESUME_BUCKET!;
+  const bucket = env.RESUME_BUCKET!;
   const resumeData = await s3Client.getFileArrayBuffer(bucket, resumePath);
   const presignedUrl = await s3Client.getPresignedUrl(bucket, resumePath);
   console.log(`Presigned URL: ${presignedUrl}`);
@@ -22,8 +22,10 @@ async function handleRequest(request: Request, env: any): Promise<Response> {;
   console.log(`S3 retrieval time: ${s3Time.toFixed(2)}ms`);
 
   const extractStart = performance.now();
-  const extractor = new ResumeExtractor(resumeData);
-  const text = await extractor.extractTextData();
+  const resumePathParts = resumePath.split('.');
+  const fileType = resumePathParts[resumePathParts.length - 1] as 'pdf' | 'docx';
+  const extractor = new ResumeExtractor(fileType);
+  const text = await extractor.extractTextData(resumeData);
   const extractEnd = performance.now();
   const extractTime = extractEnd - extractStart;
   console.log(`Text extraction time: ${extractTime.toFixed(2)}ms`);
@@ -53,7 +55,6 @@ export default {
     const path = url.pathname;
     switch (path) {
       case '/api/resume':
-        console.log('Handling resume request');
         return handleRequest(request, env);
       default:
         console.log('Invalid path:', path);

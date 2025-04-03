@@ -1,31 +1,15 @@
-import { PDFDocumentProxy, resolvePDFJS } from "pdfjs-serverless";
+import { XMLParser } from "fast-xml-parser";
+import { strFromU8, unzip, unzipSync } from "fflate";
+import { resolvePDFJS } from "pdfjs-serverless";
+
 interface BaseResumeDataExtractor {
-    extractTextData(): Promise<string>;
+    extractTextData(fileData: ArrayBuffer): Promise<string> | string;
 }
 
 class PDFJSExtractor implements BaseResumeDataExtractor {
-    doc: PDFDocumentProxy | null = null;
-    fileData: any;
-
-    constructor(fileData: any) {
-      this.fileData = fileData;
-    }
-
-    private async initialize(): Promise<void> {
+    async extractTextData(fileData: ArrayBuffer): Promise<string> {
       const { getDocument } = await resolvePDFJS();
-      this.doc = await getDocument({ data: this.fileData }).promise;
-    }
-
-    private async getDoc(): Promise<PDFDocumentProxy> {
-      if (!this.doc) {
-        const doc = await this.initialize();
-      }
-
-      return this.doc as PDFDocumentProxy;
-    }
-
-    async extractTextData(): Promise<string> {
-      const doc = await this.getDoc();
+      const doc = await getDocument({ data: fileData }).promise;
 
       const pageContents: string[] = [];
 
@@ -40,24 +24,81 @@ class PDFJSExtractor implements BaseResumeDataExtractor {
     }
 }
 
+
+class FastXMLExtractor implements BaseResumeDataExtractor {
+  parser: XMLParser;
+
+  constructor() {
+    this.parser = new XMLParser({ ignoreAttributes: false });
+  }
+
+  extractTextFromXml(xmlString: string): string {
+    const json = this.parser.parse(xmlString);
+    const body = json['w:document']?.['w:body'];
+    if (!body) return '';
+
+    const paragraphs = Array.isArray(body['w:p']) ? body['w:p'] : [body['w:p']];
+    return paragraphs
+      .map(p => {
+        const runs = Array.isArray(p['w:r']) ? p['w:r'] : [p['w:r']];
+        return runs
+          .map(r => r?.['w:t']?.['#text'] || r?.['w:t'] || '')
+          .join('');
+      })
+      .join('\n')
+      .trim();
+  }
+
+  async extractTextData(arrayBuffer: ArrayBuffer): Promise<string> {
+    const uint8 = new Uint8Array(arrayBuffer);
+    const files: Record<string, Uint8Array> = await new Promise((resolve, reject) => {
+      unzip(uint8, (err, files) => {
+      if (err) reject(err);
+      else resolve(files);
+    })});
+
+    const targetPaths = [
+      'word/document.xml',
+      ...Object.keys(files).filter(p =>
+        /^word\/(header|footer)\d*\.xml$/.test(p) ||
+        p === 'word/footnotes.xml' ||
+        p === 'word/endnotes.xml'
+      ),
+    ];
+
+    const allText = targetPaths
+      .map(path => {
+        const file = files[path];
+        if (!file) return '';
+        const xml = strFromU8(file);
+        return this.extractTextFromXml(xml);
+      })
+      .filter(Boolean)
+      .join('\n\n');
+
+    return allText;
+  }
+}
+
 export class ResumeExtractor {
     private extractor: BaseResumeDataExtractor;
-    private extractorType: string = process.env.EXTRACTOR_TYPE || 'pdfjs';
 
-    constructor(fileData: any) {
-      this.extractor = this.createExtractor(fileData)
+    constructor(fileType: 'pdf' | 'docx') {
+      this.extractor = this.createExtractor(fileType);
     }
 
-    private createExtractor(fileData: any): BaseResumeDataExtractor {
-      switch (this.extractorType) {
-        case 'pdfjs':
-          return new PDFJSExtractor(fileData);
+    private createExtractor(fileType: 'pdf' | 'docx'): BaseResumeDataExtractor {
+      switch (fileType) {
+        case 'pdf':
+          return new PDFJSExtractor();
+        case 'docx':
+          return new FastXMLExtractor();
         default:
-          throw new Error(`Unsupported extractor type: ${this.extractorType}`);
+          throw new Error(`Unsupported file type: ${fileType}`);
       }
     }
 
-    async extractTextData(): Promise<string> {
-      return this.extractor.extractTextData();
+    async extractTextData(fileData: any): Promise<string> {
+      return this.extractor.extractTextData(fileData);
     }
 }

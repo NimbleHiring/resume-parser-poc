@@ -33,7 +33,7 @@ export class S3Provider {
     }));
   }
 
-  async getFileArrayBuffer(bucket: string, key: string): Promise<any> {
+  async getFileArrayBuffer(bucket: string, key: string): Promise<ArrayBuffer> {
     const response = await this.getObject(bucket, key);
 
     if (!response.Body) {
