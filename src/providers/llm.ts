@@ -2,15 +2,16 @@ import OpenAI, { ClientOptions as OpenAIClientOptions } from "openai";
 import Anthropic, { ClientOptions as AnthropicClientOptions } from "@anthropic-ai/sdk";
 import { ContentBlock } from "@anthropic-ai/sdk/resources/index.mjs";
 import { basePrompt } from "../prompts";
+import { GenerateContentParameters, GenerateContentResponse, GoogleGenAI, GoogleGenAIOptions } from "@google/genai";
 
-type LLMResponse = OpenAI.Responses.Response | Anthropic.Message;
+type LLMResponse = OpenAI.Responses.Response | Anthropic.Message | GenerateContentResponse;
 
 type OpenAIPrompt = {
   instructions: string;
   input: string;
 }
 
-type Prompt = OpenAIPrompt | Anthropic.Messages.MessageCreateParamsNonStreaming;
+type Prompt = OpenAIPrompt | Anthropic.Messages.MessageCreateParamsNonStreaming | GenerateContentParameters;
 
 interface LLMClient<T extends Prompt = Prompt, U extends LLMResponse = LLMResponse> {
   constructPrompt(extractedData: string): T;
@@ -105,6 +106,43 @@ class AnthropicClient implements LLMClient<Anthropic.Messages.MessageCreateParam
   }
 }
 
+class GeminiClient implements LLMClient<GenerateContentParameters, GenerateContentResponse> {
+  private client: GoogleGenAI;
+  private model: string;
+
+  constructor(config: GoogleGenAIOptions, model: string) {
+    this.client = new GoogleGenAI(config);
+    this.model = model;
+  }
+
+  constructPrompt(extractedData: string): GenerateContentParameters {
+    return {
+      contents: basePrompt + `\nHere is the resume data:\n` + extractedData,
+      model: this.model,
+    }
+  }
+
+  async sendMessage(prompt: GenerateContentParameters): Promise<GenerateContentResponse> {
+    return await this.client.models.generateContent({
+      model: 'gemini-2.0-flash-001',
+      contents: 'Why is the sky blue?',
+    });
+  }
+
+  validateResponse(response: GenerateContentResponse): boolean {
+    if (!response.text) {
+      console.error("No text in response");
+      return false;
+    }
+
+    return true;
+  }
+
+  getResponseText(response: GenerateContentResponse): string {
+    return response.text as string;
+  }
+}
+
 export class LLMProvider {
   private client: LLMClient | null = null;
   private provider: string = process.env.LLM_PROVIDER || "openai";
@@ -119,6 +157,10 @@ export class LLMProvider {
         return new AnthropicClient({
           apiKey: process.env.ANTHROPIC_API_KEY,
         }, 'claude-3-5-sonnet-latest');
+      case "gemini":
+        return new GeminiClient({
+          apiKey: process.env.GEMINI_API_KEY,
+        }, 'gemini-2.0-flash-001');
       default:
         throw new Error(`Unsupported LLM provider: ${this.provider}`);
     }
@@ -140,6 +182,14 @@ export class LLMProvider {
 
   getResponseText(response: LLMResponse): string {
     const client = this.getClient();
+    if (!client.validateResponse(response)) {
+      throw new Error("Invalid response");
+    }
     return client.getResponseText(response);
+  }
+
+  constructPrompt(extractedData: string): Prompt {
+    const client = new LLMProvider().getClient();
+    return client.constructPrompt(extractedData);
   }
 }

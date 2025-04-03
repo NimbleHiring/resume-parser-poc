@@ -1,5 +1,4 @@
 import { ResumeExtractor } from "./extractors";
-import { constructPrompt } from "./prompts";
 import { LLMProvider } from "./providers";
 
 async function handleRequest(request: Request): Promise<Response> {
@@ -9,7 +8,7 @@ async function handleRequest(request: Request): Promise<Response> {
   const text = await extractor.extractTextData();
 
   const llmProvider = new LLMProvider();
-  const prompt = constructPrompt(text);
+  const prompt = llmProvider.constructPrompt(text);
   const response = await llmProvider.sendPrompt(prompt);
   const output = llmProvider.getResponseText(response);
 
