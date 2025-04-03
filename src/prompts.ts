@@ -1,4 +1,4 @@
-const systemInstructions = `You are a resume parsing API that extracts information from resumes and converts it to structured JSON.
+export const basePrompt = `You are a resume parsing API that extracts information from resumes and converts it to structured JSON.
 
 Your task is to analyze the resume text provided and return a JSON object with the following structure:
 
@@ -52,10 +52,3 @@ Guidelines:
 5. Return only valid JSON (no explanations before or after)
 6. For ongoing positions, use "Present" for endDate
 7. Preserve the chronological order of experiences and education as they appear in the resume`;
-
-export const constructPrompt = (extractedData: any) => {
-  return {
-    instructions: systemInstructions,
-    input: extractedData,
-  };
-}

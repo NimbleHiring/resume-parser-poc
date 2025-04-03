@@ -1,5 +1,4 @@
 import { PDFDocumentProxy, resolvePDFJS } from "pdfjs-serverless";
-
 interface BaseResumeDataExtractor {
     extractTextData(): Promise<string>;
 }
@@ -38,14 +37,6 @@ class PDFJSExtractor implements BaseResumeDataExtractor {
       }
 
       return pageContents.join('\n');
-    }
-
-    extractImageData(): string {
-      return '';
-    }
-
-    extractTextAndImageData(): string {
-      return '';
     }
 }
 
