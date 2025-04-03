@@ -3,13 +3,11 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 export class S3Provider {
   private client: S3Client;
-  private env: Env;
 
   constructor(env: Env) {
-    this.env = env;
     this.client = new S3Client({ region: 'us-west-1', credentials: {
-      accessKeyId: this.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: this.env.AWS_SECRET_ACCESS_KEY,
+      accessKeyId: env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
     }});
   }
 
@@ -34,6 +32,7 @@ export class S3Provider {
   }
 
   async getFileArrayBuffer(bucket: string, key: string): Promise<ArrayBuffer> {
+    const start = performance.now();
     const response = await this.getObject(bucket, key);
 
     if (!response.Body) {
@@ -41,6 +40,10 @@ export class S3Provider {
     }
 
     const byteArray = await response.Body.transformToByteArray();
+    const end = performance.now();
+    const s3Time = end - start;
+    console.log(`S3 retrieval time: ${s3Time.toFixed(2)}ms`);
+
     return byteArray.buffer;
   }
 }

@@ -180,8 +180,13 @@ export class LLMProvider {
   }
 
   async sendPrompt(message: Prompt): Promise<LLMResponse> {
+    const start = performance.now();
     const client = this.getClient();
-    return client.sendMessage(message);
+    const response = client.sendMessage(message);
+    const end = performance.now();
+    const time = end - start;
+    console.log(`LLM processing time: ${time.toFixed(2)}ms`);
+    return response;
   }
 
   getResponseText(response: LLMResponse): string {
