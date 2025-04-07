@@ -182,7 +182,7 @@ export class LLMProvider {
   async sendPrompt(message: Prompt): Promise<LLMResponse> {
     const start = performance.now();
     const client = this.getClient();
-    const response = client.sendMessage(message);
+    const response = await client.sendMessage(message);
     const end = performance.now();
     const time = end - start;
     console.log(`LLM processing time: ${time.toFixed(2)}ms`);
