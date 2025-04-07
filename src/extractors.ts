@@ -25,6 +25,7 @@ class PDFJSExtractor implements BaseResumeDataExtractor {
 }
 
 
+// IN PROGRESS, NEEDS TESTING
 class FastXMLExtractor implements BaseResumeDataExtractor {
   parser: XMLParser;
 
